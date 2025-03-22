@@ -13,11 +13,15 @@ import (
 
 func handleQUIC(conn quic.Connection) {
 	for {
+		log.Println("Accepting stream...")
+
 		stream, err := conn.AcceptUniStream(context.Background())
 		if err != nil {
 			log.Println("Failed to accept stream:", err)
 			return
 		}
+
+		log.Println("Stream accepted")
 
 		file, err := os.Create("audio.webm")
 		if err != nil {
@@ -26,10 +30,14 @@ func handleQUIC(conn quic.Connection) {
 		}
 		defer file.Close()
 
+		log.Println("Copying stream to file...")
+
 		_, err = io.Copy(file, stream)
 		if err != nil {
 			log.Println("Error writing to file:", err)
 		}
+
+		log.Println("Stream copied to file")
 	}
 }
 
