@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	speech "cloud.google.com/go/speech/apiv1"
 	"cloud.google.com/go/speech/apiv1/speechpb"
@@ -23,7 +24,7 @@ func NewSTT(ctx context.Context, client *speech.Client) (*STT, error) {
 		StreamingRequest: &speechpb.StreamingRecognizeRequest_StreamingConfig{
 			StreamingConfig: &speechpb.StreamingRecognitionConfig{
 				Config: &speechpb.RecognitionConfig{
-					Encoding:        speechpb.RecognitionConfig_LINEAR16,
+					Encoding:        speechpb.RecognitionConfig_WEBM_OPUS,
 					SampleRateHertz: 16000,
 					LanguageCode:    "ja-JP",
 				},
@@ -39,37 +40,37 @@ func NewSTT(ctx context.Context, client *speech.Client) (*STT, error) {
 	}, nil
 }
 
-func (s *STT) SendAudio(ctx context.Context, audio []byte) error {
-	sendReq := &speechpb.StreamingRecognizeRequest{
-		StreamingRequest: &speechpb.StreamingRecognizeRequest_AudioContent{
-			AudioContent: audio,
-		},
-	}
-	if err := s.stream.Send(sendReq); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *STT) Close() error {
 	return s.stream.CloseSend()
 }
 
-func (s *STT) Result() error {
+func (s *STT) SendAudio(audio []byte) error {
+	req := &speechpb.StreamingRecognizeRequest{
+		StreamingRequest: &speechpb.StreamingRecognizeRequest_AudioContent{
+			AudioContent: audio,
+		},
+	}
+	return s.stream.Send(req)
+}
+
+func (s *STT) Result() (string, error) {
+	var sb strings.Builder
 	for {
 		resp, err := s.stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return err
+			return "", err
 		}
 		if err := resp.Error; err != nil {
-			return fmt.Errorf("error: %v", err)
+			return "", fmt.Errorf("error: %v", err)
 		}
 		for _, result := range resp.Results {
-			fmt.Printf("Result: %+v\n", result)
+			for _, alt := range result.Alternatives {
+				sb.WriteString(alt.Transcript)
+			}
 		}
 	}
-	return nil
+	return sb.String(), nil
 }

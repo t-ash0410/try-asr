@@ -37,26 +37,30 @@ func handleWebSocket(spc *speech.Client) http.HandlerFunc {
 			return
 		}
 
-		for {
-			_, data, err := conn.ReadMessage()
-			if err != nil {
-				fmt.Println("Error reading message:", err)
-				break
+		go func() {
+			for {
+				_, data, err := conn.ReadMessage()
+				if err != nil {
+					fmt.Println("Error reading message:", err)
+					break
+				}
+				if err := stt.SendAudio(data); err != nil {
+					fmt.Println("Error sending audio:", err)
+					break
+				}
 			}
-
-			if err := stt.SendAudio(r.Context(), data); err != nil {
-				fmt.Println("Error sending audio:", err)
-				break
+			if err := stt.Close(); err != nil {
+				fmt.Println("Error closing STT:", err)
 			}
-		}
+		}()
 
-		if err := stt.Close(); err != nil {
-			fmt.Println("Error closing STT:", err)
-		}
-
-		if err := stt.Result(); err != nil {
+		s, err := stt.Result()
+		if err != nil {
 			fmt.Println("Error getting result:", err)
+			return
 		}
+
+		fmt.Println("Result:", s)
 	}
 }
 
