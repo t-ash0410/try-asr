@@ -6,6 +6,7 @@ export function QuicButton() {
   const [recording, setRecording] = useState(false)
   const transportRef = useRef<WebTransport | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const mediaStreamRef = useRef<MediaStream | null>(null)
   const streamRef = useRef<WritableStreamDefaultWriter | null>(null)
 
   useEffect(() => {
@@ -15,30 +16,27 @@ export function QuicButton() {
       transportRef.current = new WebTransport(quicUrl)
       await transportRef.current.ready
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm',
+      mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: true,
       })
 
-      const writer = transportRef.current.datagrams.writable.getWriter()
-      streamRef.current = writer
+      streamRef.current = transportRef.current.datagrams.writable.getWriter()
 
-      mediaRecorder.ondataavailable = async (event) => {
+      mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, {
+        mimeType: 'audio/webm',
+      })
+      mediaRecorderRef.current.ondataavailable = async (event) => {
         if (event.data.size > 0) {
-          await writer.write(event.data)
+          await streamRef.current?.write(event.data)
         }
       }
-
-      mediaRecorder.start(500)
-      mediaRecorderRef.current = mediaRecorder
+      mediaRecorderRef.current.start(500)
     }
 
     startRecording()
 
     return () => {
-      mediaRecorderRef.current?.stop()
-      streamRef.current?.close()
-      transportRef.current?.close()
+      stopRecording()
     }
   }, [recording])
 
@@ -52,6 +50,9 @@ export function QuicButton() {
     mediaRecorderRef.current?.stop()
     streamRef.current?.close()
     transportRef.current?.close()
+    for (const track of mediaStreamRef.current?.getTracks() ?? []) {
+      track.stop()
+    }
   }
 
   return (

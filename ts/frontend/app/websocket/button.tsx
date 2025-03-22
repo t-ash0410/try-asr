@@ -6,35 +6,35 @@ export function WebSocketButton() {
   const [recording, setRecording] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
     if (!recording) return
 
     async function startRecording() {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm',
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: true,
       })
 
       wsRef.current = new WebSocket(wssUrl)
       wsRef.current.onopen = () => console.log('WebSocket connected')
       wsRef.current.onerror = (err) => console.error('WebSocket error', err)
 
-      mediaRecorder.ondataavailable = (event) => {
+      mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
+        mimeType: 'audio/webm',
+      })
+      mediaRecorderRef.current.ondataavailable = (event) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(event.data)
         }
       }
-
-      mediaRecorder.start(500)
-      mediaRecorderRef.current = mediaRecorder
+      mediaRecorderRef.current.start(500)
     }
 
     startRecording()
 
     return () => {
-      mediaRecorderRef.current?.stop()
-      wsRef.current?.close()
+      stopRecording()
     }
   }, [recording])
 
@@ -45,8 +45,11 @@ export function WebSocketButton() {
   async function stopRecording() {
     setRecording(false)
 
-    mediaRecorderRef.current?.stop()
     wsRef.current?.close()
+    mediaRecorderRef.current?.stop()
+    for (const track of streamRef.current?.getTracks() ?? []) {
+      track.stop()
+    }
   }
 
   return (
