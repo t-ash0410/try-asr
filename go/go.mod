@@ -2,7 +2,10 @@ module tryhttp3
 
 go 1.24.1
 
-require github.com/quic-go/quic-go v0.50.1
+require (
+	github.com/gorilla/websocket v1.5.3
+	github.com/quic-go/quic-go v0.50.1
+)
 
 require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
