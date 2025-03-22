@@ -1,17 +1,36 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
-	"net/http"
 	"os"
 
-	"github.com/quic-go/quic-go/http3"
+	"github.com/quic-go/quic-go"
 )
 
-func handler(w http.ResponseWriter, req *http.Request) {
-	fmt.Printf("client from : %s\n", req.RemoteAddr)
-	fmt.Fprintf(w, "hello\n")
+func handleQUIC(conn quic.Connection) {
+	for {
+		stream, err := conn.AcceptUniStream(nil)
+		if err != nil {
+			log.Println("Failed to accept stream:", err)
+			return
+		}
+
+		file, err := os.Create("audio.webm")
+		if err != nil {
+			log.Println("Failed to create file:", err)
+			return
+		}
+		defer file.Close()
+
+		_, err = io.Copy(file, stream)
+		if err != nil {
+			log.Println("Error writing to file:", err)
+		}
+	}
 }
 
 func main() {
@@ -19,16 +38,31 @@ func main() {
 		port = os.Getenv("PORT")
 		cfp  = os.Getenv("CERT_FILE_PATH")
 		kfp  = os.Getenv("KEY_FILE_PATH")
+		addr = fmt.Sprintf(":%s", port)
 	)
 
-	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(handler))
+	cert, err := tls.LoadX509KeyPair(cfp, kfp)
+	if err != nil {
+		log.Fatal("Failed to load TLS certificates:", err)
+	}
+	cfg := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		NextProtos:   []string{"h3"},
+	}
 
-	addr := fmt.Sprintf(":%s", port)
+	listener, err := quic.ListenAddr(addr, cfg, nil)
+	if err != nil {
+		log.Fatal("QUIC listener error:", err)
+	}
 
-	log.Printf("Listening on %s", addr)
+	fmt.Printf("QUIC server listening on %s\n", addr)
 
-	if err := http3.ListenAndServeTLS(addr, cfp, kfp, mux); err != nil {
-		log.Fatal(err)
+	for {
+		conn, err := listener.Accept(context.Background())
+		if err != nil {
+			log.Println("Accept error:", err)
+			continue
+		}
+		go handleQUIC(conn)
 	}
 }
