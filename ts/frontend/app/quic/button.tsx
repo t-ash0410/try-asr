@@ -1,28 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
 
-const wssUrl = 'wss://localhost:8080/ws'
+const quicUrl = 'https://localhost:8080/quic'
 
 export function QuicButton() {
   const [recording, setRecording] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
+  const transportRef = useRef<WebTransport | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<WritableStreamDefaultWriter | null>(null)
 
   useEffect(() => {
     if (!recording) return
 
     async function startRecording() {
+      transportRef.current = new WebTransport(quicUrl)
+      await transportRef.current.ready
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm',
       })
 
-      wsRef.current = new WebSocket(wssUrl)
-      wsRef.current.onopen = () => console.log('WebSocket connected')
-      wsRef.current.onerror = (err) => console.error('WebSocket error', err)
+      const writer = transportRef.current.datagrams.writable.getWriter()
+      streamRef.current = writer
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(event.data)
+      mediaRecorder.ondataavailable = async (event) => {
+        if (event.data.size > 0) {
+          await writer.write(event.data)
         }
       }
 
@@ -34,7 +37,8 @@ export function QuicButton() {
 
     return () => {
       mediaRecorderRef.current?.stop()
-      wsRef.current?.close()
+      streamRef.current?.close()
+      transportRef.current?.close()
     }
   }, [recording])
 
