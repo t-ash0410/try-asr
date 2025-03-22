@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -31,32 +32,18 @@ func handleWebSocket(spc *speech.Client) http.HandlerFunc {
 		}
 		defer conn.Close()
 
-		stt, err := internal.NewSTT(r.Context(), spc)
-		if err != nil {
-			fmt.Println("Failed to create STT:", err)
-			return
+		getReader := func() (io.Reader, error) {
+			_, reader, err := conn.NextReader()
+			if err != nil {
+				fmt.Println("Failed to get reader:", err)
+				return nil, io.EOF
+			}
+			return reader, nil
 		}
 
-		go func() {
-			for {
-				_, data, err := conn.ReadMessage()
-				if err != nil {
-					fmt.Println("Error reading message:", err)
-					break
-				}
-				if err := stt.SendAudio(data); err != nil {
-					fmt.Println("Error sending audio:", err)
-					break
-				}
-			}
-			if err := stt.Close(); err != nil {
-				fmt.Println("Error closing STT:", err)
-			}
-		}()
-
-		s, err := stt.Result()
+		s, err := internal.SpeechToText(r.Context(), spc, getReader)
 		if err != nil {
-			fmt.Println("Error getting result:", err)
+			fmt.Println("Failed to speech to text:", err)
 			return
 		}
 
