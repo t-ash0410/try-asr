@@ -38,10 +38,21 @@ export function WebSocketButton() {
     }
   }, [recording])
 
+  async function startRecording() {
+    setRecording(true)
+  }
+
+  async function stopRecording() {
+    setRecording(false)
+
+    mediaRecorderRef.current?.stop()
+    wsRef.current?.close()
+  }
+
   return (
     <button
       type="button"
-      onClick={() => setRecording((prev) => !prev)}
+      onClick={() => (recording ? stopRecording() : startRecording())}
       className="rounded-full bg-blue-500 hover:bg-blue-600 hover:cursor-pointer text-white px-4 py-2"
     >
       {recording ? 'Stop' : 'Start with WebSocket'}
