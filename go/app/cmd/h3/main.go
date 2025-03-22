@@ -13,7 +13,7 @@ import (
 
 func handleQUIC(conn quic.Connection) {
 	for {
-		stream, err := conn.AcceptUniStream(nil)
+		stream, err := conn.AcceptUniStream(context.Background())
 		if err != nil {
 			log.Println("Failed to accept stream:", err)
 			return
