@@ -6,40 +6,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 
-	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
+	"github.com/quic-go/webtransport-go"
 )
-
-func handleQUIC(conn quic.Connection) {
-	for {
-		log.Println("Accepting stream...")
-
-		stream, err := conn.AcceptUniStream(context.Background())
-		if err != nil {
-			log.Println("Failed to accept stream:", err)
-			return
-		}
-
-		log.Println("Stream accepted")
-
-		file, err := os.Create("audio.webm")
-		if err != nil {
-			log.Println("Failed to create file:", err)
-			return
-		}
-		defer file.Close()
-
-		log.Println("Copying stream to file...")
-
-		_, err = io.Copy(file, stream)
-		if err != nil {
-			log.Println("Error writing to file:", err)
-		}
-
-		log.Println("Stream copied to file")
-	}
-}
 
 func main() {
 	var (
@@ -53,24 +25,55 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to load TLS certificates:", err)
 	}
-	cfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		NextProtos:   []string{"h3"},
+
+	s := &webtransport.Server{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+		H3: http3.Server{
+			Addr: addr,
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				NextProtos:   []string{"h3"},
+			},
+		},
 	}
+	defer s.Close()
 
-	listener, err := quic.ListenAddr(addr, cfg, nil)
-	if err != nil {
-		log.Fatal("QUIC listener error:", err)
-	}
-
-	fmt.Printf("QUIC server listening on %s\n", addr)
-
-	for {
-		conn, err := listener.Accept(context.Background())
+	http.HandleFunc("/wt", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := s.Upgrade(w, r)
 		if err != nil {
-			log.Println("Accept error:", err)
-			continue
+			log.Println("Failed to upgrade:", err)
+			w.WriteHeader(500)
+			return
 		}
-		go handleQUIC(conn)
+
+		file, err := os.Create("audio.webm")
+		if err != nil {
+			log.Println("Failed to create file:", err)
+			w.WriteHeader(500)
+			return
+		}
+		defer file.Close()
+
+		for {
+			stream, err := conn.AcceptStream(context.Background())
+			if err != nil {
+				log.Println("Failed to accept stream:", err)
+				w.WriteHeader(500)
+				return
+			}
+			if _, err = io.Copy(file, stream); err != nil {
+				log.Println("Error writing to file:", err)
+				w.WriteHeader(500)
+				return
+			}
+		}
+	})
+
+	log.Println("Listening on", addr)
+
+	if err := s.ListenAndServe(); err != nil {
+		log.Fatal(err)
 	}
 }
