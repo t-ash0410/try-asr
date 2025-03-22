@@ -13,6 +13,30 @@ import (
 	"github.com/quic-go/webtransport-go"
 )
 
+func handleRecording(sess *webtransport.Session) {
+	file, err := os.Create("audio.webm")
+	if err != nil {
+		log.Printf("Failed to create file: %s\n", err)
+		return
+	}
+	defer file.Close()
+
+	for {
+		ctx := context.Background()
+
+		stream, err := sess.AcceptUniStream(ctx)
+		if err != nil {
+			log.Printf("Failed to accept stream: %s\n", err)
+			return
+		}
+
+		if _, err := io.Copy(file, stream); err != nil {
+			log.Printf("Error writing to file: %s\n", err)
+			return
+		}
+	}
+}
+
 func main() {
 	var (
 		port = os.Getenv("PORT")
@@ -43,35 +67,15 @@ func main() {
 	http.HandleFunc("/wt", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := s.Upgrade(w, r)
 		if err != nil {
-			log.Println("Failed to upgrade:", err)
+			log.Printf("Failed to upgrade: %s\n", err)
 			w.WriteHeader(500)
 			return
 		}
 
-		file, err := os.Create("audio.webm")
-		if err != nil {
-			log.Println("Failed to create file:", err)
-			w.WriteHeader(500)
-			return
-		}
-		defer file.Close()
-
-		for {
-			stream, err := conn.AcceptStream(context.Background())
-			if err != nil {
-				log.Println("Failed to accept stream:", err)
-				w.WriteHeader(500)
-				return
-			}
-			if _, err = io.Copy(file, stream); err != nil {
-				log.Println("Error writing to file:", err)
-				w.WriteHeader(500)
-				return
-			}
-		}
+		handleRecording(conn)
 	})
 
-	log.Println("Listening on", addr)
+	log.Printf("Listening on %s\n", addr)
 
 	if err := s.ListenAndServe(); err != nil {
 		log.Fatal(err)

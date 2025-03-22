@@ -7,7 +7,6 @@ export function WebTransportButton() {
   const transportRef = useRef<WebTransport | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
-  const streamRef = useRef<WritableStreamDefaultWriter | null>(null)
 
   useEffect(() => {
     if (!recording) return
@@ -20,14 +19,18 @@ export function WebTransportButton() {
         audio: true,
       })
 
-      streamRef.current = transportRef.current.datagrams.writable.getWriter()
-
       mediaRecorderRef.current = new MediaRecorder(mediaStreamRef.current, {
         mimeType: 'audio/webm',
       })
       mediaRecorderRef.current.ondataavailable = async (event) => {
         if (event.data.size > 0) {
-          await streamRef.current?.write(event.data)
+          const buf = await event.data.arrayBuffer()
+
+          const stream =
+            await transportRef.current?.createUnidirectionalStream()
+          const writer = stream?.getWriter()
+          await writer?.write(buf)
+          await writer?.close()
         }
       }
       mediaRecorderRef.current.start(500)
@@ -47,12 +50,14 @@ export function WebTransportButton() {
   async function stopRecording() {
     setRecording(false)
 
-    mediaRecorderRef.current?.stop()
-    streamRef.current?.close()
     transportRef.current?.close()
     for (const track of mediaStreamRef.current?.getTracks() ?? []) {
       track.stop()
     }
+    transportRef.current = null
+
+    mediaRecorderRef.current?.stop()
+    mediaRecorderRef.current = null
   }
 
   return (
