@@ -10,6 +10,9 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        gcloud = pkgs.google-cloud-sdk.withExtraComponents [ 
+          pkgs.google-cloud-sdk.components.gke-gcloud-auth-plugin 
+        ];
       in
       {
         devShells.default = pkgs.mkShell {
@@ -17,6 +20,7 @@
             bun
             go
             mkcert
+            gcloud
           ];
         };
       }

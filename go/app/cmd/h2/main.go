@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	speech "cloud.google.com/go/speech/apiv1"
 	"github.com/gorilla/websocket"
+
+	"tryhttp3/app/internal"
 )
 
 func handleHealth(w http.ResponseWriter, req *http.Request) {
@@ -18,32 +22,45 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		fmt.Println("WebSocket upgrade failed:", err)
-		return
-	}
-	defer conn.Close()
-
-	file, err := os.Create("audio.webm")
-	if err != nil {
-		fmt.Println("Failed to create file:", err)
-		return
-	}
-	defer file.Close()
-
-	for {
-		_, data, err := conn.ReadMessage()
+func handleWebSocket(spc *speech.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			fmt.Println("Error reading message:", err)
-			break
+			fmt.Println("WebSocket upgrade failed:", err)
+			return
 		}
-		_, err = file.Write(data)
+		defer conn.Close()
+
+		stt, err := internal.NewSTT(r.Context(), spc)
 		if err != nil {
-			fmt.Println("Error writing to file:", err)
-			break
+			fmt.Println("Failed to create STT:", err)
+			return
 		}
+
+		go func() {
+			for {
+				_, data, err := conn.ReadMessage()
+				if err != nil {
+					fmt.Println("Error reading message:", err)
+					break
+				}
+				if err := stt.SendAudio(data); err != nil {
+					fmt.Println("Error sending audio:", err)
+					break
+				}
+			}
+			if err := stt.Close(); err != nil {
+				fmt.Println("Error closing STT:", err)
+			}
+		}()
+
+		s, err := stt.Result()
+		if err != nil {
+			fmt.Println("Error getting result:", err)
+			return
+		}
+
+		fmt.Println("Result:", s)
 	}
 }
 
@@ -54,9 +71,15 @@ func main() {
 		kfp  = os.Getenv("KEY_FILE_PATH")
 	)
 
+	spc, err := speech.NewClient(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer spc.Close()
+
 	mux := http.NewServeMux()
 	mux.Handle("/health", http.HandlerFunc(handleHealth))
-	mux.Handle("/ws", http.HandlerFunc(handleWebSocket))
+	mux.Handle("/ws", http.HandlerFunc(handleWebSocket(spc)))
 
 	server := http.Server{
 		Addr:    fmt.Sprintf("localhost:%s", port),
@@ -65,8 +88,7 @@ func main() {
 
 	log.Printf("Listening on %s", server.Addr)
 
-	err := server.ListenAndServeTLS(cfp, kfp)
-	if err != nil {
+	if err := server.ListenAndServeTLS(cfp, kfp); err != nil {
 		log.Fatal(err)
 	}
 }
