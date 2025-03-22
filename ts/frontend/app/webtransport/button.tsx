@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
-const quicUrl = 'https://localhost:8080'
+const quicUrl = 'https://localhost:8080/wt'
 
-export function QuicButton() {
+export function WebTransportButton() {
   const [recording, setRecording] = useState(false)
   const transportRef = useRef<WebTransport | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)

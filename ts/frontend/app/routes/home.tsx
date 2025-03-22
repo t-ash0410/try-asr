@@ -1,5 +1,5 @@
-import { QuicButton } from '~/quic/button'
 import { WebSocketButton } from '~/websocket/button'
+import { WebTransportButton } from '~/webtransport/button'
 import type { Route } from './+types/home'
 
 export function meta(_: Route.MetaArgs) {
@@ -22,7 +22,7 @@ export default function Home() {
           <WebSocketButton />
         </div>
         <div>
-          <QuicButton />
+          <WebTransportButton />
         </div>
       </div>
     </main>
