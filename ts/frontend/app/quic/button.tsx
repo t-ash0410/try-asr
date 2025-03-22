@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const quicUrl = 'https://localhost:8080/quic'
+const quicUrl = 'https://localhost:8080'
 
 export function QuicButton() {
   const [recording, setRecording] = useState(false)
@@ -42,10 +42,22 @@ export function QuicButton() {
     }
   }, [recording])
 
+  async function startRecording() {
+    setRecording(true)
+  }
+
+  async function stopRecording() {
+    setRecording(false)
+
+    mediaRecorderRef.current?.stop()
+    streamRef.current?.close()
+    transportRef.current?.close()
+  }
+
   return (
     <button
       type="button"
-      onClick={() => setRecording((prev) => !prev)}
+      onClick={() => (recording ? stopRecording() : startRecording())}
       className="rounded-full bg-blue-500 hover:bg-blue-600 hover:cursor-pointer text-white px-4 py-2"
     >
       {recording ? 'Stop' : 'Start with QUIC'}
