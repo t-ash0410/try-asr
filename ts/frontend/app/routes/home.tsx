@@ -1,3 +1,4 @@
+import { QuicButton } from '~/quic/button'
 import { WebSocketButton } from '~/websocket/button'
 import type { Route } from './+types/home'
 
@@ -19,6 +20,9 @@ export default function Home() {
         </div>
         <div>
           <WebSocketButton />
+        </div>
+        <div>
+          <QuicButton />
         </div>
       </div>
     </main>
