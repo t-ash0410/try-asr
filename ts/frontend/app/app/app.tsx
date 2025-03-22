@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const wsUrl = 'ws://localhost:8080/ws'
+const wssUrl = 'wss://localhost:8080/ws'
 
 export function App() {
   const [recording, setRecording] = useState(false)
@@ -16,7 +16,7 @@ export function App() {
         mimeType: 'audio/webm',
       })
 
-      wsRef.current = new WebSocket(wsUrl)
+      wsRef.current = new WebSocket(wssUrl)
       wsRef.current.onopen = () => console.log('WebSocket connected')
       wsRef.current.onerror = (err) => console.error('WebSocket error', err)
 
