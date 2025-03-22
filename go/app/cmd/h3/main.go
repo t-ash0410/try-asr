@@ -6,9 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/quic-go/quic-go/qlog"
 )
 
 func handler(w http.ResponseWriter, req *http.Request) {
@@ -26,19 +24,11 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(handler))
 
-	server := http3.Server{
-		Addr: fmt.Sprintf("localhost:%s", port),
-		QUICConfig: &quic.Config{
-			Tracer: qlog.DefaultConnectionTracer,
-		},
-		Handler: mux,
-	}
+	addr := fmt.Sprintf(":%s", port)
 
-	log.Printf("Listening on %s", server.Addr)
+	log.Printf("Listening on %s", addr)
 
-	// docker run --rm keioni/curl-http3 curl -v -L -s --http3 https://localhost:6060/
-	err := server.ListenAndServeTLS(cfp, kfp)
-	if err != nil {
+	if err := http3.ListenAndServeTLS(addr, cfp, kfp, mux); err != nil {
 		log.Fatal(err)
 	}
 }
