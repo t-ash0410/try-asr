@@ -23,15 +23,16 @@ export function WebTransportButton() {
         mimeType: 'audio/webm',
       })
       mediaRecorderRef.current.ondataavailable = async (event) => {
-        if (event.data.size > 0) {
-          const buf = await event.data.arrayBuffer()
-
-          const stream =
-            await transportRef.current?.createUnidirectionalStream()
-          const writer = stream?.getWriter()
-          await writer?.write(buf)
-          await writer?.close()
+        const transport = transportRef.current
+        if (!transport || event.data.size < 1) {
+          return
         }
+
+        const buf = await event.data.arrayBuffer()
+        const stream = await transport.createUnidirectionalStream()
+        const writer = stream.getWriter()
+        await writer.write(buf)
+        await writer.close()
       }
       mediaRecorderRef.current.start(500)
     }

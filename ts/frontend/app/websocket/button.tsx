@@ -17,16 +17,17 @@ export function WebSocketButton() {
       })
 
       wsRef.current = new WebSocket(wssUrl)
-      wsRef.current.onopen = () => console.log('WebSocket connected')
-      wsRef.current.onerror = (err) => console.error('WebSocket error', err)
 
       mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
         mimeType: 'audio/webm',
       })
       mediaRecorderRef.current.ondataavailable = (event) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(event.data)
+        const ws = wsRef.current
+        if (!ws || ws.readyState !== WebSocket.OPEN || event.data.size < 1) {
+          return
         }
+
+        ws.send(event.data)
       }
       mediaRecorderRef.current.start(500)
     }
@@ -45,11 +46,16 @@ export function WebSocketButton() {
   async function stopRecording() {
     setRecording(false)
 
-    wsRef.current?.close()
-    mediaRecorderRef.current?.stop()
     for (const track of streamRef.current?.getTracks() ?? []) {
       track.stop()
     }
+    streamRef.current = null
+
+    mediaRecorderRef.current?.stop()
+    mediaRecorderRef.current = null
+
+    wsRef.current?.close()
+    wsRef.current = null
   }
 
   return (
