@@ -1,4 +1,4 @@
-import { App } from '../app/app'
+import { App } from '../websocket/app'
 import type { Route } from './+types/home'
 
 export function meta(_: Route.MetaArgs) {
