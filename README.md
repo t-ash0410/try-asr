@@ -2,6 +2,8 @@
 
 A demo project to try out Google Speech to Text API for speech recognition.
 
+![Image](assets/top.png)
+
 ## Project Structure
 
 ```txt
