@@ -22,11 +22,22 @@ const getStatusText = (state: ConnectionState) => {
 const getStatusColor = (state: ConnectionState) => {
   switch (state) {
     case ConnectionState.OPEN:
-      return 'bg-green-500'
+      return 'from-emerald-500 to-emerald-400'
     case ConnectionState.CLOSED:
-      return 'bg-gray-500'
+      return 'from-violet-400 to-violet-500'
     case ConnectionState.WAITING_CLOSE:
-      return 'bg-yellow-500'
+      return 'from-yellow-500 to-yellow-400'
+  }
+}
+
+const getStatusRingColor = (state: ConnectionState) => {
+  switch (state) {
+    case ConnectionState.OPEN:
+      return 'ring-emerald-500/20'
+    case ConnectionState.CLOSED:
+      return 'ring-violet-400/20'
+    case ConnectionState.WAITING_CLOSE:
+      return 'ring-yellow-500/20'
   }
 }
 
@@ -40,13 +51,16 @@ export function VoiceRecognitionPanel() {
     })
 
   return (
-    <div className="flex flex-col gap-4 p-4 rounded-lg border border-gray-200">
-      <div className="flex items-center gap-2">
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${getStatusColor(connectionState)}`}
-        >
-          {getStatusText(connectionState)}
-        </span>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={`h-3 w-3 rounded-full bg-gradient-to-r ${getStatusColor(connectionState)} shadow-lg ring-4 ${getStatusRingColor(connectionState)}`}
+          />
+          <span className="text-sm font-medium bg-gradient-to-r from-foreground/90 to-foreground/60 bg-clip-text text-transparent">
+            {getStatusText(connectionState)}
+          </span>
+        </div>
         <Button
           variant={recording ? 'destructive' : 'default'}
           size="icon"
@@ -61,18 +75,29 @@ export function VoiceRecognitionPanel() {
         </Button>
       </div>
 
-      <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
-        {messages.map((message) => (
-          <div
-            key={`${message.timestamp.getTime()}-${message.text}`}
-            className="p-2 bg-gray-50 rounded"
-          >
-            <div className="text-xs text-gray-500">
-              {message.timestamp.toLocaleTimeString()}
-            </div>
-            <div className="text-sm text-gray-700">{message.text}</div>
+      {/* メッセージリスト */}
+      <div className="relative">
+        <div className="absolute -inset-1 bg-gradient-to-r from-secondary/20 via-accent/20 to-primary/20 rounded-lg blur-md" />
+        <div className="relative">
+          <div className="max-h-[400px] overflow-y-auto space-y-3 p-1">
+            {messages.map((message) => (
+              <div
+                key={`${message.timestamp.getTime()}-${message.text}`}
+                className="group relative"
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground">
+                    {message.timestamp.toLocaleTimeString()}
+                  </div>
+                  <div className="mt-1 text-sm text-foreground/90">
+                    {message.text}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   )
