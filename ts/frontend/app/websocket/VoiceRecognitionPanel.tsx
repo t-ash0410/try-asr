@@ -1,4 +1,6 @@
+import { Mic, Square } from 'lucide-react'
 import { useState } from 'react'
+import { Button } from '~/components/ui/button'
 import { ConnectionState, useWebSocketRecorder } from './useWebSocketRecorder'
 
 interface Message {
@@ -38,21 +40,27 @@ export function VoiceRecognitionPanel() {
     })
 
   return (
-    <div className="flex flex-col gap-4 p-4 rounded-lg border border-gray-200 max-w-2xl">
+    <div className="flex flex-col gap-4 p-4 rounded-lg border border-gray-200">
       <div className="flex items-center gap-2">
         <span
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${getStatusColor(connectionState)}`}
         >
           {getStatusText(connectionState)}
         </span>
-        <button
-          type="button"
+        <Button
+          variant={recording ? 'destructive' : 'default'}
+          size="icon"
           onClick={() => (recording ? stopRecording() : startRecording())}
-          className="rounded-full bg-blue-500 hover:bg-blue-600 hover:cursor-pointer text-white px-4 py-2"
+          className="ml-auto"
         >
-          {recording ? 'Stop' : 'Start with WebSocket'}
-        </button>
+          {recording ? (
+            <Square className="h-4 w-4" />
+          ) : (
+            <Mic className="h-4 w-4" />
+          )}
+        </Button>
       </div>
+
       <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
         {messages.map((message) => (
           <div
