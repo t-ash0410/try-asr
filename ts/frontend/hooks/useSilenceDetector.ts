@@ -13,11 +13,13 @@ class SilenceDetector {
   private readonly bufferLength: number
   private readonly dataArray: Float32Array
   private isSilent: boolean
+  private isStopped: boolean
   private silenceStart: number
   private stream: MediaStream | null
 
   onSilenceStart?: () => void
   onSilenceEnd?: () => void
+  onRestart?: () => void
 
   constructor(options: SilenceDetectorOptions) {
     this.audioContext = new AudioContext()
@@ -30,6 +32,7 @@ class SilenceDetector {
     this.dataArray = new Float32Array(this.bufferLength)
 
     this.isSilent = false
+    this.isStopped = false
     this.silenceStart = 0
     this.stream = null
   }
@@ -70,13 +73,20 @@ class SilenceDetector {
         this.isSilent = true
         this.silenceStart = Date.now()
         this.onSilenceStart?.()
-      } else if (Date.now() - this.silenceStart > this.silenceTime * 1000) {
+      } else if (
+        Date.now() - this.silenceStart > this.silenceTime * 1000 &&
+        !this.isStopped
+      ) {
         this.onSilenceEnd?.()
-        return
+        this.isStopped = true
       }
     } else {
       if (this.isSilent) {
         this.isSilent = false
+      }
+      if (this.isStopped) {
+        this.onRestart?.()
+        this.isStopped = false
       }
     }
     requestAnimationFrame(this.checkSilence)
@@ -92,6 +102,7 @@ const useSilenceDetector = (
     const ret = new SilenceDetector(options)
     ret.onSilenceStart = options.onSilenceStart
     ret.onSilenceEnd = options.onSilenceEnd
+    ret.onRestart = options.onRestart
     return ret
   }, [options])
 

@@ -3,6 +3,7 @@ export interface SilenceDetectorOptions {
   silenceTime?: number
   onSilenceStart?: () => void
   onSilenceEnd?: () => void
+  onRestart?: () => void
 }
 
 export interface SilenceDetectorHookReturn {

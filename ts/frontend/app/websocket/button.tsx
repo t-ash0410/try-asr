@@ -13,35 +13,22 @@ export function WebSocketButton() {
     threshold: -45,
     silenceTime: 1.0,
     onSilenceEnd: () => {
-      stopRecording()
+      const ws = wsRef.current
+      if (!ws) {
+        return
+      }
+      stopRecorder()
+      ws.send('waitResult')
+    },
+    onRestart: () => {
+      startRecorder()
     },
   })
 
   useEffect(() => {
     if (!recording) return
 
-    async function start() {
-      wsRef.current = new WebSocket(wssUrl)
-
-      streamRef.current = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      })
-
-      mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
-        mimeType: 'audio/webm',
-      })
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        const ws = wsRef.current
-        if (!ws || ws.readyState !== WebSocket.OPEN || event.data.size < 1) {
-          return
-        }
-
-        ws.send(event.data)
-      }
-      mediaRecorderRef.current.start(500)
-    }
-
-    start()
+    connect()
     startListening()
 
     return () => {
@@ -49,13 +36,32 @@ export function WebSocketButton() {
     }
   }, [recording, startListening])
 
-  async function startRecording() {
-    setRecording(true)
+  async function connect() {
+    wsRef.current = new WebSocket(wssUrl)
+    wsRef.current.onmessage = (event) => {
+      console.log('received message', event.data)
+    }
+    await startRecorder()
   }
 
-  async function stopRecording() {
-    setRecording(false)
+  async function startRecorder() {
+    streamRef.current = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+    })
+    mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
+      mimeType: 'audio/webm',
+    })
+    mediaRecorderRef.current.ondataavailable = (event) => {
+      const ws = wsRef.current
+      if (!ws || ws.readyState !== WebSocket.OPEN || event.data.size < 1) {
+        return
+      }
+      ws.send(event.data)
+    }
+    mediaRecorderRef.current.start(500)
+  }
 
+  function stopRecorder() {
     for (const track of streamRef.current?.getTracks() ?? []) {
       track.stop()
     }
@@ -63,10 +69,17 @@ export function WebSocketButton() {
 
     mediaRecorderRef.current?.stop()
     mediaRecorderRef.current = null
+  }
 
+  async function startRecording() {
+    setRecording(true)
+  }
+
+  async function stopRecording() {
+    setRecording(false)
+    stopRecorder()
     wsRef.current?.close()
     wsRef.current = null
-
     stopListening()
   }
 
