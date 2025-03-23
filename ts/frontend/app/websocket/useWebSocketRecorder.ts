@@ -3,13 +3,23 @@ import { useSilenceDetector } from '~/hooks/useSilenceDetector'
 
 const wssUrl = 'wss://localhost:8080/ws'
 
-enum ConnectionState {
+export enum ConnectionState {
   OPEN = 'open',
   CLOSED = 'closed',
   WAITING_CLOSE = 'waiting_close',
 }
 
-export function WebSocketButton() {
+export interface UseWebSocketRecorderOptions {
+  onMessage: (message: string) => void
+  silenceThreshold?: number
+  silenceTime?: number
+}
+
+export function useWebSocketRecorder({
+  onMessage,
+  silenceThreshold = -45,
+  silenceTime = 1.0,
+}: UseWebSocketRecorderOptions) {
   const [recording, setRecording] = useState(false)
   const [connectionState, setConnectionState] = useState(ConnectionState.CLOSED)
   const connectionStateRef = useRef(ConnectionState.CLOSED)
@@ -23,8 +33,8 @@ export function WebSocketButton() {
   }, [connectionState])
 
   const { startListening, stopListening } = useSilenceDetector({
-    threshold: -45,
-    silenceTime: 1.0,
+    threshold: silenceThreshold,
+    silenceTime,
     onSilenceEnd: () => {
       if (connectionStateRef.current !== ConnectionState.OPEN) return false
       wsRef.current?.send('waitResult')
@@ -43,7 +53,7 @@ export function WebSocketButton() {
 
     wsRef.current = new WebSocket(wssUrl)
     wsRef.current.onmessage = (event) => {
-      console.log('received message', event.data)
+      onMessage(event.data)
     }
     wsRef.current.onclose = () => {
       stop()
@@ -100,13 +110,10 @@ export function WebSocketButton() {
     stop()
   }
 
-  return (
-    <button
-      type="button"
-      onClick={() => (recording ? stopRecording() : startRecording())}
-      className="rounded-full bg-blue-500 hover:bg-blue-600 hover:cursor-pointer text-white px-4 py-2"
-    >
-      {recording ? 'Stop' : 'Start with WebSocket'}
-    </button>
-  )
+  return {
+    recording,
+    connectionState,
+    startRecording,
+    stopRecording,
+  }
 }

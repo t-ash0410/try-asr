@@ -1,5 +1,5 @@
-import { WebSocketButton } from '~/app/websocket/button'
-import { WebTransportButton } from '~/app/webtransport/button'
+import { VoiceRecognitionPanel } from '~/app/websocket/VoiceRecognitionPanel'
+// import { WebTransportButton } from '~/app/webtransport/button'
 import type { Route } from './+types/home'
 
 export function meta(_: Route.MetaArgs) {
@@ -18,12 +18,10 @@ export default function Home() {
             Recording
           </nav>
         </div>
-        <div>
-          <WebSocketButton />
-        </div>
-        <div>
+        <VoiceRecognitionPanel />
+        {/* <div>
           <WebTransportButton />
-        </div>
+        </div> */}
       </div>
     </main>
   )
