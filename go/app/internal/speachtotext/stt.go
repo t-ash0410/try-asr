@@ -10,16 +10,16 @@ import (
 	"cloud.google.com/go/speech/apiv1/speechpb"
 )
 
+const (
+	checkInterval = 8
+)
+
 type GetReaderFunc func() (io.Reader, error)
 
 func SpeechToText(ctx context.Context, client *speech.Client, getReader GetReaderFunc) (string, error) {
-	stream, err := client.StreamingRecognize(ctx)
+	stream, err := newStream(ctx, client)
 	if err != nil {
 		return "", fmt.Errorf("failed to create stream: %v", err)
-	}
-
-	if err := config(stream); err != nil {
-		return "", fmt.Errorf("failed to config: %v", err)
 	}
 
 	for {
@@ -30,19 +30,24 @@ func SpeechToText(ctx context.Context, client *speech.Client, getReader GetReade
 		if err != nil {
 			return "", fmt.Errorf("failed to get reader: %v", err)
 		}
-		if err := sendAudio(stream, reader); err != nil {
+
+		bytes, err := io.ReadAll(reader)
+		if err != nil {
+			return "", fmt.Errorf("failed to read all: %v", err)
+		}
+		if err := sendAudio(stream, bytes); err != nil {
 			return "", fmt.Errorf("failed to send audio: %v", err)
 		}
 	}
-
-	if err := stream.CloseSend(); err != nil {
-		return "", fmt.Errorf("failed to close stream: %v", err)
-	}
-
 	return result(stream)
 }
 
-func config(stream speechpb.Speech_StreamingRecognizeClient) error {
+func newStream(ctx context.Context, client *speech.Client) (speechpb.Speech_StreamingRecognizeClient, error) {
+	ret, err := client.StreamingRecognize(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	req := &speechpb.StreamingRecognizeRequest{
 		StreamingRequest: &speechpb.StreamingRecognizeRequest_StreamingConfig{
 			StreamingConfig: &speechpb.StreamingRecognitionConfig{
@@ -54,17 +59,14 @@ func config(stream speechpb.Speech_StreamingRecognizeClient) error {
 			},
 		},
 	}
-	if err := stream.Send(req); err != nil {
-		return err
+	if err := ret.Send(req); err != nil {
+		return nil, err
 	}
-	return nil
+
+	return ret, nil
 }
 
-func sendAudio(stream speechpb.Speech_StreamingRecognizeClient, reader io.Reader) error {
-	bytes, err := io.ReadAll(reader)
-	if err != nil {
-		return fmt.Errorf("failed to read all: %v", err)
-	}
+func sendAudio(stream speechpb.Speech_StreamingRecognizeClient, bytes []byte) error {
 	req := &speechpb.StreamingRecognizeRequest{
 		StreamingRequest: &speechpb.StreamingRecognizeRequest_AudioContent{
 			AudioContent: bytes,
@@ -77,6 +79,10 @@ func sendAudio(stream speechpb.Speech_StreamingRecognizeClient, reader io.Reader
 }
 
 func result(stream speechpb.Speech_StreamingRecognizeClient) (string, error) {
+	if err := stream.CloseSend(); err != nil {
+		return "", fmt.Errorf("failed to close: %v", err)
+	}
+
 	var sb strings.Builder
 	for {
 		resp, err := stream.Recv()
@@ -95,5 +101,6 @@ func result(stream speechpb.Speech_StreamingRecognizeClient) (string, error) {
 			}
 		}
 	}
+
 	return sb.String(), nil
 }

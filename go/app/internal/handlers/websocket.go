@@ -24,27 +24,28 @@ func HandleWebSocket(spc *speech.Client) http.HandlerFunc {
 		}
 		defer conn.Close()
 
-		getReader := func() (io.Reader, error) {
-			_, reader, err := conn.NextReader()
-			if websocket.IsCloseError(err,
-				websocket.CloseNormalClosure,
-				websocket.CloseGoingAway,
-				websocket.CloseNoStatusReceived,
-			) {
-				return nil, io.EOF
-			}
-			if err != nil {
-				return nil, err
-			}
-			return reader, nil
-		}
-
-		s, err := speachtotext.SpeechToText(r.Context(), spc, getReader)
-		if err != nil {
+		s, err := speachtotext.SpeechToText(r.Context(), spc, getReader(conn))
+		if err != nil && err != io.EOF {
 			fmt.Println("Failed to speech to text:", err)
 			return
 		}
-
 		fmt.Println("Result:", s)
+	}
+}
+
+func getReader(conn *websocket.Conn) speachtotext.GetReaderFunc {
+	return func() (io.Reader, error) {
+		_, reader, err := conn.NextReader()
+		if websocket.IsCloseError(err,
+			websocket.CloseNormalClosure,
+			websocket.CloseGoingAway,
+			websocket.CloseNoStatusReceived,
+		) {
+			return nil, io.EOF
+		}
+		if err != nil {
+			return nil, err
+		}
+		return reader, nil
 	}
 }
