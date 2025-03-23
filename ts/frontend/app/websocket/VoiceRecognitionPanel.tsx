@@ -11,11 +11,11 @@ interface Message {
 const getStatusText = (state: ConnectionState) => {
   switch (state) {
     case ConnectionState.OPEN:
-      return '聞き取り中'
+      return 'Listening...'
     case ConnectionState.CLOSED:
-      return '発言待ち'
+      return 'Ready to Record'
     case ConnectionState.WAITING_CLOSE:
-      return '解析中'
+      return 'Processing...'
   }
 }
 
@@ -75,7 +75,6 @@ export function VoiceRecognitionPanel() {
         </Button>
       </div>
 
-      {/* メッセージリスト */}
       <div className="relative">
         <div className="absolute -inset-1 bg-gradient-to-r from-secondary/20 via-accent/20 to-primary/20 rounded-lg blur-md" />
         <div className="relative">

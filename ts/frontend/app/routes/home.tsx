@@ -19,10 +19,10 @@ export default function Home() {
               <div className="absolute -inset-1 bg-gradient-to-r from-primary via-secondary to-accent rounded-lg blur opacity-25" />
               <div className="relative bg-card rounded-lg border border-border/50 backdrop-blur-xl p-8">
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  音声認識デモ
+                  Voice Recognition System v1.0
                 </h1>
                 <p className="mt-2 text-muted-foreground">
-                  未来的な音声認識システムを体験してください
+                  Experience the future of voice recognition technology
                 </p>
               </div>
             </div>
