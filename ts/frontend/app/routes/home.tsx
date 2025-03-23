@@ -1,28 +1,40 @@
-import { WebSocketButton } from '~/app/websocket/button'
-import { WebTransportButton } from '~/app/webtransport/button'
+import { VoiceRecognitionPanel } from '~/app/websocket/VoiceRecognitionPanel'
+// import { WebTransportButton } from '~/app/webtransport/button'
 import type { Route } from './+types/home'
 
 export function meta(_: Route.MetaArgs) {
   return [
-    { title: 'New React Router App' },
-    { name: 'description', content: 'Welcome to React Router!' },
+    { title: 'Voice Recognition Demo' },
+    { name: 'description', content: 'Cyberpunk-style voice recognition demo' },
   ]
 }
 
 export default function Home() {
   return (
-    <main className="flex items-center justify-center pt-16 pb-4">
-      <div className="flex-1 flex flex-col items-center gap-16 min-h-0">
-        <div className="max-w-[300px] w-full space-y-6 px-4">
-          <nav className="rounded-3xl border border-gray-200 p-6 dark:border-gray-700 space-y-4">
-            Recording
-          </nav>
-        </div>
-        <div>
-          <WebSocketButton />
-        </div>
-        <div>
-          <WebTransportButton />
+    <main className="min-h-screen bg-gradient-to-b from-background to-card">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col items-center gap-8">
+          <header className="w-full max-w-3xl">
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary via-secondary to-accent rounded-lg blur opacity-25" />
+              <div className="relative bg-card rounded-lg border border-border/50 backdrop-blur-xl p-8">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Voice Recognition System v1.0
+                </h1>
+                <p className="mt-2 text-muted-foreground">
+                  Experience the future of voice recognition technology
+                </p>
+              </div>
+            </div>
+          </header>
+          <section className="w-full max-w-3xl">
+            <div className="relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-secondary via-accent to-primary rounded-lg blur opacity-25" />
+              <div className="relative bg-card rounded-lg border border-border/50 backdrop-blur-xl p-8">
+                <VoiceRecognitionPanel />
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </main>
