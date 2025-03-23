@@ -1,4 +1,4 @@
-package speachtotext
+package speeachtotext
 
 import (
 	"context"
@@ -10,39 +10,7 @@ import (
 	"cloud.google.com/go/speech/apiv1/speechpb"
 )
 
-const (
-	checkInterval = 8
-)
-
-type GetReaderFunc func() (io.Reader, error)
-
-func SpeechToText(ctx context.Context, client *speech.Client, getReader GetReaderFunc) (string, error) {
-	stream, err := newStream(ctx, client)
-	if err != nil {
-		return "", fmt.Errorf("failed to create stream: %v", err)
-	}
-
-	for {
-		reader, err := getReader()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return "", fmt.Errorf("failed to get reader: %v", err)
-		}
-
-		bytes, err := io.ReadAll(reader)
-		if err != nil {
-			return "", fmt.Errorf("failed to read all: %v", err)
-		}
-		if err := sendAudio(stream, bytes); err != nil {
-			return "", fmt.Errorf("failed to send audio: %v", err)
-		}
-	}
-	return result(stream)
-}
-
-func newStream(ctx context.Context, client *speech.Client) (speechpb.Speech_StreamingRecognizeClient, error) {
+func NewStream(ctx context.Context, client *speech.Client) (speechpb.Speech_StreamingRecognizeClient, error) {
 	ret, err := client.StreamingRecognize(ctx)
 	if err != nil {
 		return nil, err
@@ -66,7 +34,7 @@ func newStream(ctx context.Context, client *speech.Client) (speechpb.Speech_Stre
 	return ret, nil
 }
 
-func sendAudio(stream speechpb.Speech_StreamingRecognizeClient, bytes []byte) error {
+func SendAudio(stream speechpb.Speech_StreamingRecognizeClient, bytes []byte) error {
 	req := &speechpb.StreamingRecognizeRequest{
 		StreamingRequest: &speechpb.StreamingRecognizeRequest_AudioContent{
 			AudioContent: bytes,
@@ -78,7 +46,7 @@ func sendAudio(stream speechpb.Speech_StreamingRecognizeClient, bytes []byte) er
 	return nil
 }
 
-func result(stream speechpb.Speech_StreamingRecognizeClient) (string, error) {
+func Result(stream speechpb.Speech_StreamingRecognizeClient) (string, error) {
 	if err := stream.CloseSend(); err != nil {
 		return "", fmt.Errorf("failed to close: %v", err)
 	}
