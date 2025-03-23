@@ -1,9 +1,5 @@
 // hooks/useSilenceDetector.ts
 import { useCallback, useEffect, useRef } from 'react'
-import type {
-  SilenceDetectorHookReturn,
-  SilenceDetectorOptions,
-} from '~/types/silenceDetector'
 
 class SilenceDetector {
   private audioContext: AudioContext
@@ -13,11 +9,13 @@ class SilenceDetector {
   private readonly bufferLength: number
   private readonly dataArray: Float32Array
   private isSilent: boolean
+  private isInterrupted: boolean
   private silenceStart: number
   private stream: MediaStream | null
 
   onSilenceStart?: () => void
-  onSilenceEnd?: () => void
+  onSilenceEnd?: () => boolean
+  onRestart?: () => boolean
 
   constructor(options: SilenceDetectorOptions) {
     this.audioContext = new AudioContext()
@@ -30,6 +28,7 @@ class SilenceDetector {
     this.dataArray = new Float32Array(this.bufferLength)
 
     this.isSilent = false
+    this.isInterrupted = false
     this.silenceStart = 0
     this.stream = null
   }
@@ -54,7 +53,11 @@ class SilenceDetector {
   }
 
   private checkSilence = (): void => {
-    if (!this.stream) return
+    if (!this.stream) {
+      this.isSilent = false
+      requestAnimationFrame(this.checkSilence)
+      return
+    }
 
     this.analyser.getFloatTimeDomainData(this.dataArray)
 
@@ -64,34 +67,60 @@ class SilenceDetector {
     )
 
     const db = 20 * Math.log10(rms)
-
     if (db < this.threshold) {
+      if (this.isInterrupted) {
+        requestAnimationFrame(this.checkSilence)
+        return
+      }
+
       if (!this.isSilent) {
         this.isSilent = true
         this.silenceStart = Date.now()
         this.onSilenceStart?.()
-      } else if (Date.now() - this.silenceStart > this.silenceTime * 1000) {
-        this.onSilenceEnd?.()
-        return
       }
-    } else {
-      if (this.isSilent) {
-        this.isSilent = false
+
+      const silentDuration = Date.now() - this.silenceStart
+      const silentThreshold = this.silenceTime * 1000
+      if (silentDuration > silentThreshold && this.onSilenceEnd?.()) {
+        this.isInterrupted = true
       }
+
+      requestAnimationFrame(this.checkSilence)
+      return
+    }
+    if (this.isSilent) {
+      this.isSilent = false
+    }
+    if (this.isInterrupted && this.onRestart?.()) {
+      this.isInterrupted = false
     }
     requestAnimationFrame(this.checkSilence)
   }
 }
 
-const useSilenceDetector = (
+interface SilenceDetectorOptions {
+  threshold?: number
+  silenceTime?: number
+  onSilenceStart?: () => void
+  onSilenceEnd?: () => boolean
+  onRestart?: () => boolean
+}
+
+interface SilenceDetectorHookReturn {
+  startListening: () => Promise<void>
+  stopListening: () => void
+}
+
+export function useSilenceDetector(
   options: SilenceDetectorOptions = {},
-): SilenceDetectorHookReturn => {
+): SilenceDetectorHookReturn {
   const detectorRef = useRef<SilenceDetector | null>(null)
 
   const createDetector = useCallback(() => {
     const ret = new SilenceDetector(options)
     ret.onSilenceStart = options.onSilenceStart
     ret.onSilenceEnd = options.onSilenceEnd
+    ret.onRestart = options.onRestart
     return ret
   }, [options])
 
@@ -99,7 +128,6 @@ const useSilenceDetector = (
     if (!detectorRef.current) {
       detectorRef.current = createDetector()
     }
-
     await detectorRef.current.start()
   }, [createDetector])
 
@@ -112,9 +140,7 @@ const useSilenceDetector = (
 
   useEffect(() => {
     return () => {
-      if (detectorRef.current) {
-        stopListening()
-      }
+      stopListening()
     }
   }, [stopListening])
 
@@ -123,5 +149,3 @@ const useSilenceDetector = (
     stopListening,
   }
 }
-
-export default useSilenceDetector

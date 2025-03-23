@@ -2,13 +2,16 @@ package handlers
 
 import (
 	"fmt"
-	"io"
 	"net/http"
+	"tryhttp3/app/internal/speeachtotext"
 
 	speech "cloud.google.com/go/speech/apiv1"
+	"cloud.google.com/go/speech/apiv1/speechpb"
 	"github.com/gorilla/websocket"
+)
 
-	"tryhttp3/app/internal/speachtotext"
+const (
+	processControlMessageWaitResult = "waitResult"
 )
 
 var upgrader = websocket.Upgrader{
@@ -17,6 +20,8 @@ var upgrader = websocket.Upgrader{
 
 func HandleWebSocket(spc *speech.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("WebSocket connection received")
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			fmt.Println("WebSocket upgrade failed:", err)
@@ -24,28 +29,49 @@ func HandleWebSocket(spc *speech.Client) http.HandlerFunc {
 		}
 		defer conn.Close()
 
-		s, err := speachtotext.SpeechToText(r.Context(), spc, getReader(conn))
-		if err != nil && err != io.EOF {
-			fmt.Println("Failed to speech to text:", err)
+		stream, err := speeachtotext.NewStream(r.Context(), spc)
+		if err != nil {
+			fmt.Println("Failed to create stream:", err)
 			return
 		}
-		fmt.Println("Result:", s)
+		for {
+			_, message, err := conn.ReadMessage()
+			if websocket.IsCloseError(err,
+				websocket.CloseNormalClosure,
+				websocket.CloseGoingAway,
+				websocket.CloseNoStatusReceived,
+			) {
+				break
+			}
+			if err != nil {
+				fmt.Println("Failed to read message:", err)
+				break
+			}
+
+			if string(message) == "waitResult" {
+				if err := sendResult(conn, stream); err != nil {
+					fmt.Println("Failed to send result:", err)
+					break
+				}
+				break
+			}
+			if err := speeachtotext.SendAudio(stream, message); err != nil {
+				fmt.Println("Failed to send audio:", err)
+				break
+			}
+		}
+
+		fmt.Println("WebSocket closed")
 	}
 }
 
-func getReader(conn *websocket.Conn) speachtotext.GetReaderFunc {
-	return func() (io.Reader, error) {
-		_, reader, err := conn.NextReader()
-		if websocket.IsCloseError(err,
-			websocket.CloseNormalClosure,
-			websocket.CloseGoingAway,
-			websocket.CloseNoStatusReceived,
-		) {
-			return nil, io.EOF
-		}
-		if err != nil {
-			return nil, err
-		}
-		return reader, nil
+func sendResult(conn *websocket.Conn, stream speechpb.Speech_StreamingRecognizeClient) error {
+	ret, err := speeachtotext.Result(stream)
+	if err != nil {
+		return err
 	}
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(ret)); err != nil {
+		return err
+	}
+	return nil
 }
