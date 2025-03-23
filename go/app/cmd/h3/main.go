@@ -4,44 +4,23 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
 
+	speech "cloud.google.com/go/speech/apiv1"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
+
+	"tryhttp3/app/internal/handlers"
 )
-
-func handleRecording(sess *webtransport.Session) {
-	file, err := os.Create("audio.webm")
-	if err != nil {
-		log.Printf("Failed to create file: %s\n", err)
-		return
-	}
-	defer file.Close()
-
-	for {
-		ctx := context.Background()
-
-		stream, err := sess.AcceptUniStream(ctx)
-		if err != nil {
-			log.Printf("Failed to accept stream: %s\n", err)
-			return
-		}
-
-		if _, err := io.Copy(file, stream); err != nil {
-			log.Printf("Error writing to file: %s\n", err)
-			return
-		}
-	}
-}
 
 func main() {
 	var (
 		port = os.Getenv("PORT")
 		cfp  = os.Getenv("CERT_FILE_PATH")
 		kfp  = os.Getenv("KEY_FILE_PATH")
+
 		addr = fmt.Sprintf(":%s", port)
 	)
 
@@ -64,16 +43,13 @@ func main() {
 	}
 	defer s.Close()
 
-	http.HandleFunc("/wt", func(w http.ResponseWriter, r *http.Request) {
-		conn, err := s.Upgrade(w, r)
-		if err != nil {
-			log.Printf("Failed to upgrade: %s\n", err)
-			w.WriteHeader(500)
-			return
-		}
+	spc, err := speech.NewClient(context.Background())
+	if err != nil {
+		log.Fatal("Failed to create speech client:", err)
+	}
+	defer spc.Close()
 
-		handleRecording(conn)
-	})
+	http.HandleFunc("/wt", handlers.HandleRecording(s, spc))
 
 	log.Printf("Listening on %s\n", addr)
 

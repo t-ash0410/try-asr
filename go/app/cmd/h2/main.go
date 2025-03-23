@@ -8,61 +8,9 @@ import (
 	"os"
 
 	speech "cloud.google.com/go/speech/apiv1"
-	"github.com/gorilla/websocket"
 
-	"tryhttp3/app/internal"
+	"tryhttp3/app/internal/handlers"
 )
-
-func handleHealth(w http.ResponseWriter, req *http.Request) {
-	fmt.Printf("client from : %s\n", req.RemoteAddr)
-	fmt.Fprintf(w, "ok\n")
-}
-
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
-
-func handleWebSocket(spc *speech.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			fmt.Println("WebSocket upgrade failed:", err)
-			return
-		}
-		defer conn.Close()
-
-		stt, err := internal.NewSTT(r.Context(), spc)
-		if err != nil {
-			fmt.Println("Failed to create STT:", err)
-			return
-		}
-
-		go func() {
-			for {
-				_, data, err := conn.ReadMessage()
-				if err != nil {
-					fmt.Println("Error reading message:", err)
-					break
-				}
-				if err := stt.SendAudio(data); err != nil {
-					fmt.Println("Error sending audio:", err)
-					break
-				}
-			}
-			if err := stt.Close(); err != nil {
-				fmt.Println("Error closing STT:", err)
-			}
-		}()
-
-		s, err := stt.Result()
-		if err != nil {
-			fmt.Println("Error getting result:", err)
-			return
-		}
-
-		fmt.Println("Result:", s)
-	}
-}
 
 func main() {
 	var (
@@ -78,8 +26,8 @@ func main() {
 	defer spc.Close()
 
 	mux := http.NewServeMux()
-	mux.Handle("/health", http.HandlerFunc(handleHealth))
-	mux.Handle("/ws", http.HandlerFunc(handleWebSocket(spc)))
+	mux.Handle("/health", http.HandlerFunc(handlers.HandleHealth))
+	mux.Handle("/ws", handlers.HandleWebSocket(spc))
 
 	server := http.Server{
 		Addr:    fmt.Sprintf("localhost:%s", port),

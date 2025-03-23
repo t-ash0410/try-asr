@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import useSilenceDetector from '~/hooks/useSilenceDetector'
 
 const wssUrl = 'wss://localhost:8080/ws'
 
@@ -8,15 +9,23 @@ export function WebSocketButton() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
+  const { startListening, stopListening } = useSilenceDetector({
+    threshold: -45,
+    silenceTime: 1.0,
+    onSilenceEnd: () => {
+      stopRecording()
+    },
+  })
+
   useEffect(() => {
     if (!recording) return
 
-    async function startRecording() {
+    async function start() {
+      wsRef.current = new WebSocket(wssUrl)
+
       streamRef.current = await navigator.mediaDevices.getUserMedia({
         audio: true,
       })
-
-      wsRef.current = new WebSocket(wssUrl)
 
       mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
         mimeType: 'audio/webm',
@@ -32,12 +41,13 @@ export function WebSocketButton() {
       mediaRecorderRef.current.start(500)
     }
 
-    startRecording()
+    start()
+    startListening()
 
     return () => {
       stopRecording()
     }
-  }, [recording])
+  }, [recording, startListening])
 
   async function startRecording() {
     setRecording(true)
@@ -56,6 +66,8 @@ export function WebSocketButton() {
 
     wsRef.current?.close()
     wsRef.current = null
+
+    stopListening()
   }
 
   return (

@@ -1,5 +1,5 @@
-import { WebSocketButton } from '~/websocket/button'
-import { WebTransportButton } from '~/webtransport/button'
+import { WebSocketButton } from '~/app/websocket/button'
+import { WebTransportButton } from '~/app/webtransport/button'
 import type { Route } from './+types/home'
 
 export function meta(_: Route.MetaArgs) {
