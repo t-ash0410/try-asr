@@ -20,6 +20,8 @@ var upgrader = websocket.Upgrader{
 
 func HandleWebSocket(spc *speech.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("WebSocket connection received")
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			fmt.Println("WebSocket upgrade failed:", err)
@@ -27,17 +29,12 @@ func HandleWebSocket(spc *speech.Client) http.HandlerFunc {
 		}
 		defer conn.Close()
 
-		var stream speechpb.Speech_StreamingRecognizeClient
+		stream, err := speeachtotext.NewStream(r.Context(), spc)
+		if err != nil {
+			fmt.Println("Failed to create stream:", err)
+			return
+		}
 		for {
-			if stream == nil {
-				s, err := speeachtotext.NewStream(r.Context(), spc)
-				if err != nil {
-					fmt.Println("Failed to create stream:", err)
-					return
-				}
-				stream = s
-			}
-
 			_, message, err := conn.ReadMessage()
 			if websocket.IsCloseError(err,
 				websocket.CloseNormalClosure,
@@ -48,22 +45,23 @@ func HandleWebSocket(spc *speech.Client) http.HandlerFunc {
 			}
 			if err != nil {
 				fmt.Println("Failed to read message:", err)
-				return
+				break
 			}
 
 			if string(message) == "waitResult" {
 				if err := sendResult(conn, stream); err != nil {
 					fmt.Println("Failed to send result:", err)
-					return
+					break
 				}
-				stream = nil
-				continue
+				break
 			}
 			if err := speeachtotext.SendAudio(stream, message); err != nil {
 				fmt.Println("Failed to send audio:", err)
-				return
+				break
 			}
 		}
+
+		fmt.Println("WebSocket closed")
 	}
 }
 
