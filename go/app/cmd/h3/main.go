@@ -12,7 +12,7 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/webtransport-go"
 
-	"tryhttp3/app/internal/handlers"
+	"tryasr/app/internal/handlers"
 )
 
 func main() {

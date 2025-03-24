@@ -6,10 +6,11 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"tryhttp3/app/internal/speeachtotext"
 
 	speech "cloud.google.com/go/speech/apiv1"
 	"github.com/quic-go/webtransport-go"
+
+	"tryasr/app/internal/speeachtotext"
 )
 
 func HandleRecording(s *webtransport.Server, spc *speech.Client) http.HandlerFunc {
