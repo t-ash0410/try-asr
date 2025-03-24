@@ -3,11 +3,12 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"tryhttp3/app/internal/speeachtotext"
 
 	speech "cloud.google.com/go/speech/apiv1"
 	"cloud.google.com/go/speech/apiv1/speechpb"
 	"github.com/gorilla/websocket"
+
+	"tryasr/app/internal/speeachtotext"
 )
 
 const (

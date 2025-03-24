@@ -9,7 +9,7 @@ import (
 
 	speech "cloud.google.com/go/speech/apiv1"
 
-	"tryhttp3/app/internal/handlers"
+	"tryasr/app/internal/handlers"
 )
 
 func main() {
