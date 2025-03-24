@@ -5,6 +5,8 @@
     "quickfix.biome": "explicit",
     "source.organizeImports.biome": "explicit"
   },
+  "go.formatTool": "goimports",
+  "go.formatFlags": ["-local=tryasr"],
   "biome.lspBin": "ts/frontend/node_modules/@biomejs/cli-linux-x64/biome",
   "[javascript]": {
     "editor.defaultFormatter": "biomejs.biome"
